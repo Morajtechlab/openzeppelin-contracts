@@ -1,0 +1,135 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+contract BetaTokenERC20 {
+    // Suministro total de tokens BetaToken
+    uint public constant SUMINISTRO_TOTAL = 1000000.000000;
+
+    // Decimales del token BetaToken
+    uint8 public constant DECIMALES = 6;
+
+    // Símbolo del token BetaToken" 
+    string public constant SIMBOLO = "BT";
+
+    // Nombre del token BetaToken"
+    string public constant NOMBRE = "BetaToken";
+
+    // Evento para notificar la creación de nuevos tokens
+    event NuevoToken(address cuenta, uint cantidad);
+
+    // Evento para transferencia de tokens
+    event Transfer(address indexed from, address indexed to, uint256 amount); 
+
+    // Evento para aprobación de tokens
+    event Approval(address indexed owner, address indexed spender, uint256 amount);
+    
+    // Evento para recibir token y actualizar balance
+    event ReceiveTokens(address indexed receptor, uint256 cantidad);
+
+    // Mapping para balances de cuentas
+    mapping(address => uint256) public balances;
+
+    // Mapping para aprobaciones de tokens
+    mapping(address => mapping(address => uint256)) public allowed;
+
+    // Dirección del propietario
+    address private owner;
+
+    // Modificador para funciones solo ejecutables por el propietario
+    modifier onlyOwner {
+        require(msg.sender == owner);
+        _;
+    }
+
+    // Constructor
+    constructor() {
+        // Establecer el suministro total de tokens
+        balances[address(this)] = SUMINISTRO_TOTAL;
+        owner = msg.sender;
+        emit NuevoToken(address(this), SUMINISTRO_TOTAL);
+    }
+
+    // Función para obtener el suministro total de tokens
+    function totalSupply() public pure returns (uint256) {
+        return SUMINISTRO_TOTAL;
+    }
+
+    // Función para obtener el símbolo del token
+    function symbol() public pure returns (string memory) {
+        return SIMBOLO;
+    }
+
+    // Función para obtener el nombre del token
+    function name() public pure  returns (string memory) {
+        return NOMBRE;
+    }
+
+    // Función para obtener los decimales del token
+    function decimals() public pure  returns (uint8) {
+        return DECIMALES;
+    }
+
+    // Función para obtener el balance del contrato
+    function Balance() public view returns (uint256) {
+        return balances[address(this)];
+    }
+
+    // Función para aprobar tokens
+    function approve(address spender, uint cantidad) public  {
+        require(cantidad > 0);
+        allowed[msg.sender][spender] = cantidad;
+        emit Approval(msg.sender, spender, cantidad);
+    }
+
+    // Función para transferir tokens desde el contrato 
+    function transfer(address destino, uint256 cantidad) public {
+
+    // Requiere cantidad mayor a cero
+    require(cantidad > 0, "Cantidad debe ser mayor a cero");
+
+    // Verifica si el contrato tiene saldo suficiente
+    require(balances[address(this)] >= cantidad, "Saldo insuficiente en el contrato");
+
+    // Resta la cantidad del saldo del contrato
+    balances[address(this)] -= cantidad;
+
+    // Suma la cantidad al saldo del destino
+    balances[destino] += cantidad;
+
+    // Emite evento de transferencia
+    emit Transfer(address(this), destino, cantidad);
+
+    // Verifica si el destino es un contrato
+    uint256 contratoSize;
+    assembly { contratoSize := extcodesize(destino) }
+    if (contratoSize > 0) {
+        // Llama a receiveTokens en el contrato destino ERC-20
+        (bool success, ) = destino.call(abi.encodeWithSignature("receiveTokens(uint256)", cantidad));
+        // Requiere éxito en la llamada
+        require(success, "Error al llamar receiveTokens");
+    }
+}
+    //Funcion para recebir token ERC-20 BetaToken
+     function receiveTokens(uint cantidad) public {
+        balances[address(this)] += cantidad;
+        emit ReceiveTokens(address(this), cantidad);
+    }
+ // Función para mintear nuevos tokens ASMEB 
+    function mint(uint cantidad) public onlyOwner  {
+        require(cantidad >= 1);
+        require(balances[address(this)] + cantidad >= balances[address(this)]);
+        balances[address(this)] += cantidad;
+        emit NuevoToken(address(this), cantidad);
+    }
+    // Función para quemar tokens 
+    function burn(uint cantidad) public onlyOwner  {
+        require(cantidad >= 1);
+        require(balances[address(this)] >= cantidad);
+        balances[address(this)] -= cantidad;
+        emit Transfer(address(this), address(0), cantidad);
+        }
+        
+        //ASMEB Sepolia 2024
+    
+    }
